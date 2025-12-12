@@ -139,7 +139,8 @@ def get_question_fields(question_json):
     return {key: value for key, value in question_json.items() if key not in ["email", "secret", "correct", "reason"]}
 
 async def solve_question(question_fields: dict, submission_responses: List[str]) -> str:
-    print(question_fields, f"AGENT_USE_LEFT: {AGENT_USE_LEFT}", )
+    global AGENT_USE_LEFT
+    print(question_fields, f"\n\nAGENT_USE_LEFT: {AGENT_USE_LEFT}", )
 
     try:
         result = await agent.run(
@@ -152,7 +153,6 @@ async def solve_question(question_fields: dict, submission_responses: List[str])
     except Exception as e:
         print("Agent execution error:", e)
 
-    global AGENT_USE_LEFT
     if submission_responses and "url" in submission_responses[-1] and AGENT_USE_LEFT > 0:
         await solve_question(get_question_fields(submission_responses[-1]), submission_responses)
         AGENT_USE_LEFT -= 1
