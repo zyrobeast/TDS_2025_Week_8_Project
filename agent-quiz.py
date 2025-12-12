@@ -29,7 +29,7 @@ EMAIL = os.getenv("EMAIL")
 SECRET = os.getenv("SECRET")
 AI_PIPE_TOKEN = os.getenv("AI_PIPE_TOKEN")
 OUTPUT_FILE_PATH = "run.py"
-MAX_AGENT_USE = 50
+AGENT_USE_LEFT = 50
 
 @dataclass
 class AgentDeps:
