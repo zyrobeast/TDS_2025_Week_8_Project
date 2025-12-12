@@ -56,7 +56,7 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     - Code must solve the question given in the url page.
     - Execute the code using the tool provided to get the answer.
     - Submit the result of the code to the submission url given in the question page. The result may contain errors, handle them appropriately.
-    - Return the submission response json in json format for the submission tool as the final output (Output the json not anything else).
+    - Return the submission response json in json format for the submission tool as the final output (Output the json only, no markdown).
     """
 
 @agent.tool_plain
