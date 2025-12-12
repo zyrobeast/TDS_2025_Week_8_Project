@@ -55,7 +55,7 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     - Write a python code that prints the answer to the question only to the output stream.
     - Code must solve the question given in the url page.
     - Execute the code using the tool provided to get the answer.
-    - Submit the result of the code to the submission url given in the question page.
+    - Submit the result of the code to the submission url given in the question page. The result may contain errors, handle them appropriately.
     - Return the submission response json as the final output (Output in json format only).
     """
 
@@ -69,7 +69,7 @@ async def load_page_text(url: str) -> str:
         async with async_playwright() as pw:
             browser = await pw.firefox.launch()
             page = await browser.new_page()
-            await page.goto(url, wait_until="networkidle")
+            await page.goto(url, wait_until="networkidle", timeout=5000)
 
             text = await page.inner_text("body")
 
@@ -153,6 +153,8 @@ async def solve_question(question_fields: dict) -> str:
     
     if "url" in result_json:
         await solve_question(get_question_fields(result_json))
+
+    return json.dumps(result_json)
 
 @app.get("/")
 async def root():
