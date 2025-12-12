@@ -150,7 +150,7 @@ async def solve_question(url: str, mistakes=None) -> str:
         return JSONResponse(status_code=500, content={"error": "Failed to extract question"})
 
     try:
-        result_str = agent.run_sync(
+        result_str = await agent.run(
             deps=AgentDeps(question_data=question_data, previous_mistakes=mistakes),
             usage_limits=UsageLimits(tool_calls_limit=5)
         ).output

@@ -3,4 +3,4 @@ __pycache__/
 .idea/
 .env
 test_request.txt
-agent-quiz-run.sh
+agent-quiz-local-test.sh
