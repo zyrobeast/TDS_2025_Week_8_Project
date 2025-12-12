@@ -71,11 +71,11 @@ async def load_page_html(url: str) -> str:
         async with async_playwright() as pw:
             browser = await pw.firefox.launch()
             page = await browser.new_page()
-            await page.goto(url, wait_until="networkidle", timeout=5000)
+            await page.goto(url, wait_until="networkidle", timeout=30000)
 
             html_content = await page.content()
             await browser.close()
-            print("Loaded page HTML:\n", html_content)
+            print("\n\nLoaded page HTML:\n", html_content, "\n\n")
             return html_content
     except Exception as e:
         print("Playwright error:", e)
@@ -91,7 +91,7 @@ async def write_code_and_get_result(file_data: str, dependencies: List[str]):
     """
     with open(OUTPUT_FILE_PATH, "w") as writer:
         writer.write(file_data)
-        print("------------Python code ------------\n", file_data)
+        print("\n------------Python code ------------\n", file_data)
 
     print("\n\nRunning task with dependencies:", dependencies)
 
@@ -122,7 +122,7 @@ async def submit_answer(ctx: RunContext[AgentDeps], submit_url: str, question_ur
         response = requests.post(submit_url, json=json_data, timeout=5)
         response_json = response.json()
 
-        print("Response:", response_json)
+        print("\nResponse:", response_json)
         ctx.deps.submission_responses.append(response_json)
         if not response_json.get("correct", False):
             raise ModelRetry(f"Answer was incorrect, please try rewriting the code. Reason for incorrect answer: {response_json.get('reason', 'Unknown')}. If the answer is incorrect multiple times, output {response_json} as the result.")
@@ -145,7 +145,7 @@ async def solve_question(question_fields: dict, submission_responses: List[str])
         )
         
         result_str = result.output
-        print("Final agent output:", result_str)
+        print("\nFinal agent output:", result_str)
     except Exception as e:
         print("Agent execution error:", e)
 
