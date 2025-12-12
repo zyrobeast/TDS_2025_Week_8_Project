@@ -121,7 +121,7 @@ async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
         response = requests.post(submit_url, json=json_data, timeout=5)
         response_json = response.json()
 
-        if not json.loads(response_json).get("correct", False):
+        if not response_json.get("correct", False):
             print("Answer was incorrect:", response_json)
             raise ModelRetry(f"Answer was incorrect, please try rewriting the code. Reason for incorrect answer: {response_json.get('reason', 'Unknown')}. If the answer is incorrect multiple times, output {response_json} as the result.")
         
