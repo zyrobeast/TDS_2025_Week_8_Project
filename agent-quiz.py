@@ -130,7 +130,7 @@ async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
         raise ModelRetry( f"Error submitting answer: {str(e)}\n. Please try again.")
 
 def get_question_fields(question_json):
-    return {key: value for key, value in payload.items() if key not in ["email", "secret", "correct", "reason"]}
+    return {key: value for key, value in question_json.items() if key not in ["email", "secret", "correct", "reason"]}
 
 async def solve_question(question_fields: dict) -> str:
     print(question_fields)
@@ -183,6 +183,8 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
     except Exception:
         return JSONResponse(status_code=400, content={"error": "Invalid JSON payload"})
 
+    print(payload)
+
     email = payload.get("email")
     secret = payload.get("secret")
     url = payload.get("url")
@@ -193,7 +195,7 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
     if secret != SECRET or email.lower() != EMAIL.lower():
         return JSONResponse(status_code=403, content={"error": "Invalid secret or email."})
 
-    background_tasks.add_task(solve_question, get_question_fields(payload))
+    background_tasks.add_task(solve_question, get_question_fields(json.loads(payload)))
     return JSONResponse(status_code=200, content={"status": "queued"})
 
 
