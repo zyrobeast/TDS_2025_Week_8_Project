@@ -113,7 +113,7 @@ async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
     Returns the response json.
     """
     try:
-        json_data = json.loads(answer)
+        json_data = {}
         json_data['secret'] = SECRET
         json_data['email'] = EMAIL
         json_data['url'] = question_url
@@ -137,12 +137,12 @@ async def solve_question(question_fields: dict) -> str:
     print(question_fields)
 
     try:
-        await agent.run(
+        result = await agent.run(
             deps=AgentDeps(question_dict=question_fields),
             usage_limits=UsageLimits(tool_calls_limit=10)
         )
         
-        result_str = agent.output
+        result_str = result.output
     except Exception as e:
         print("Agent execution error:", e)
     
