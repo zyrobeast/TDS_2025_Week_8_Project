@@ -58,7 +58,7 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     - Return the submission response as the final output.
     """
 
-@agent._tool_plain
+@agent.tool_plain
 async def load_page_text(url: str) -> str:
     """
     Load the given URL using Playwright, render JavaScript,
