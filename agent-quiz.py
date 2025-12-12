@@ -8,8 +8,7 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import List
 from pydantic import BaseModel, field_validator
-from pydantic_ai import Agent, RunContext
-from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.usage import UsageLimits
@@ -29,76 +28,130 @@ EMAIL = os.getenv("EMAIL")
 SECRET = os.getenv("SECRET")
 AI_PIPE_TOKEN = os.getenv("AI_PIPE_TOKEN")
 OUTPUT_FILE_PATH = "run.py"
-MAX_RETRIES = 2
 
 @dataclass
 class AgentDeps:
-    question_data: str
-    previous_mistakes: List[str] = field(default_factory=list)
-
+    question_dict: dict = field(default_factory=dict)
 
 model = OpenAIResponsesModel(
     "gpt-4o-mini",
     provider=OpenAIProvider(
         base_url="https://aipipe.org/openai/v1/",
         api_key=AI_PIPE_TOKEN
-    )
-)
+    ))
 
 agent = Agent(model, retries=3, deps_type=AgentDeps)
-
 
 @agent.system_prompt
 async def add_task(ctx: RunContext[AgentDeps]) -> str:
     return f"""
     You are a quiz solver who can use Python if necessary.
-    Solve the question shown below.
-
-    {ctx.deps.question_data}
+    Solve the question given in the url given in the json below:
+    
+    {json.dumps(ctx.deps.question_dict, indent=2)}
 
     You must:
-    - Provide ONLY Python code (no explanation text)
-    - The secret, email are environment variables and the question url is passed to the python script as arguement.
-    - Code must solve the question
-    {'\n'.join('- {mistake}' for mistake in ctx.deps.previous_mistakes)}
-    - Code must POST the answer to the URL included in the question and print the response on the standard output.
-    - At the end, call the tool to run the code using 'uv'
-
-    Output ONLY the code or the output of any tool — no markdown, no text.
+    - Write a python code that prints the answer to the question only to the output stream.
+    - Code must solve the question given in the url page.
+    - Execute the code using the tool provided to get the answer.
+    - Submit the result of the code to the submission url given in the question page.
+    - Return the submission response as the final output.
     """
 
-
-@agent.tool_plain
-def write_code(file_data: str):
-    """Creates run.py and writes the generated code into it."""
-    with open(OUTPUT_FILE_PATH, "w") as writer:
-        writer.write(file_data)
-
-
-@agent.tool_plain
-def run_task(dependencies: List[str]):
+@agent._tool_plain
+async def load_page_text(url: str) -> str:
     """
-    Uses uv package manager to install dependencies temporarily
-    and run run.py.
+    Load the given URL using Playwright, render JavaScript,
+    and return the fully rendered page text.
     """
     try:
+        async with async_playwright() as pw:
+            browser = await pw.firefox.launch()
+            page = await browser.new_page()
+            await page.goto(url, wait_until="networkidle")
+
+            text = await page.inner_text("body")
+
+            await browser.close()
+            print("Loaded page text:\n", text)
+            return text
+    except Exception as e:
+        print("Playwright error:", e)
+        raise ModelRetry("Failed to use Playwright to load the page. Try again.")
+
+@agent.tool_plain
+async def write_code_and_get_result(file_data: str, dependencies: List[str]):
+    """
+    Creates run.py and writes the generated code into it.
+    Then uv package manager is used to install dependencies of the file temporarily and run run.py.
+    Finally, the output printed by run.py on the the output stream is used as return value of the tool.
+    Any error is also captured and returned.
+    """
+    with open(OUTPUT_FILE_PATH, "w") as writer:
+        writer.write(file_data)
+        print("------------Python code ------------\n", file_data)
+
+    print("\n\nRunning task with dependencies:", dependencies)
+
+    try:
         result = subprocess.run(
-            ["uv", *' '.join(f'--with {d}' for d in dependencies).split(), "python", "run.py"],
+            ["uv", *' '.join(f'--with {d}' for d in dependencies).split(), "run", "run.py"],
             capture_output=True,
             text=True
         )
         print(result.stdout)
         return result.stdout
-    except subprocess.CalledProcessError as e:
-        print(e.stderr)
-        return e.stderr
-    except PermissionError:
-        print("Permission Error")
-        return "Permission Error"
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
-        return f"Unexpected error: {str(e)}"
+        print(f"Code execution failed due to:\n {str(e)}")
+        raise ModelRetry(f"Code execution failed due to:\n {str(e)}")
 
+@agent.tool_plain
+async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
+    """
+    Submit the answer for the question_url to the given submit_url via POST request.
+    Returns the response json.
+    """
+    try:
+        json_data = json.loads(answer)
+        json_data['secret'] = SECRET
+        json_data['email'] = EMAIL
+        json_data['url'] = question_url
+        json_data['answer'] = answer
+        response = requests.post(submit_url, json=json_data, timeout=5)
+        response_json = response.json()
+
+        if not json.loads(response_json).get("correct", False):
+            print("Answer was incorrect:", response_json)
+            raise ModelRetry(f"Answer was incorrect, please try rewriting the code. Reason for incorrect answer: {response_json.get('reason', 'Unknown')}. If the answer is incorrect multiple times, output {response_json} as the result.")
+        
+        return response_json
+    except Exception as e:
+        print("Error submitting answer:", e)
+        raise ModelRetry( f"Error submitting answer: {str(e)}\n. Please try again.")
+
+def get_question_fields(question_json):
+    return {key: value for key, value in payload.items() if key not in ["email", "secret", "correct", "reason"]}
+
+async def solve_question(question_fields: dict) -> str:
+    print(question_fields)
+
+    try:
+        await agent.run(
+            deps=AgentDeps(question_dict=question_fields),
+            usage_limits=UsageLimits(tool_calls_limit=10)
+        )
+        
+        result_str = agent.output
+    except Exception as e:
+        print("Agent execution error:", e)
+    
+    try:
+        result_json = json.loads(result_str)
+    except json.JSONDecodeError:
+        print("Result is not valid JSON:", result_str)
+    
+    if "url" in result_json:
+        await solve_question(get_question_fields(result_json))
 
 @app.get("/")
 async def root():
@@ -123,62 +176,6 @@ async def root():
         ]
     }
 
-
-async def extract_question(url: str) -> str:
-    """
-    Load the given URL using Playwright, render the JavaScript,
-    and extract the visible text as question_data.
-    """
-    async with async_playwright() as pw:
-        browser = await pw.firefox.launch()
-        page = await browser.new_page()
-        await page.goto(url, wait_until="networkidle")
-
-        text = await page.inner_text("body")
-
-        await browser.close()
-        return text
-
-async def solve_question(url: str, mistakes=None) -> str:
-    if mistakes is None:
-        mistakes = []
-
-    try:
-        question_data = await extract_question(url)
-    except Exception as e:
-        print("Playwright extraction error:", e)
-        return JSONResponse(status_code=500, content={"error": "Failed to extract question"})
-
-    try:
-        result = await agent.run(
-            deps=AgentDeps(question_data=question_data, previous_mistakes=mistakes),
-            usage_limits=UsageLimits(tool_calls_limit=5)
-        )
-        
-        result_str = agent.output
-    except Exception as e:
-        print("Agent execution error:", e)
-        return "Some error occurred"
-
-    try:
-        result_json = json.loads(result_str)
-    except json.JSONDecodeError:
-        print("Result is not valid JSON:", result_str)
-        return "Invalid response from agent"
-
-
-    if not result_json.get("correct", False) and len(mistakes) < MAX_RETRIES:
-        mistakes.append(result_json.get("reason", "Unknown mistake"))
-        return await solve_question(url, mistakes)
-
-    
-    if "url" in result_json:
-        return await solve_question(result_json["url"], mistakes=[])
-
-    return json.dumps(result_json)
-
-        
-
 @app.post("/")
 async def task_root(request: Request, background_tasks: BackgroundTasks):
     try:
@@ -196,7 +193,7 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
     if secret != SECRET or email.lower() != EMAIL.lower():
         return JSONResponse(status_code=403, content={"error": "Invalid secret or email."})
 
-    background_tasks.add_task(solve_question, url)
+    background_tasks.add_task(solve_question, get_question_fields(payload))
     return JSONResponse(status_code=200, content={"status": "queued"})
 
 
