@@ -79,7 +79,7 @@ async def load_page_html(url: str) -> str:
         async with async_playwright() as pw:
             browser = await pw.firefox.launch()
             page = await browser.new_page()
-            page.on("route", lambda route, request: route.abort() if request.url.endswith(blocked_extensions) else route.continue_())
+            page.on("route", lambda route, request: route.abort() if any(request.url.endswith(ext) for ext in blocked_extensions) else route.continue_())
 
             await page.goto(url, wait_until="networkidle", timeout=30000)
 
