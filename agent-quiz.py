@@ -54,7 +54,7 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     {json.dumps(ctx.deps.question_dict, indent=2)}
 
     You must:
-    - Write a python code that prints the answer to the question only to the output stream.
+    - Write a python code that prints the answer to the question only to the output stream. You may run multiple python scripts if you need to analyse something in the given page. You can also use playwright in the script.
     - Code must solve the question given in the url page.
     - Do not try to submit the answer in the code, use the submit_answer tool.
     - Execute the code using the tool provided to get the answer.
