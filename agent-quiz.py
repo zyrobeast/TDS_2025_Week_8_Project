@@ -69,10 +69,17 @@ async def load_page_html(url: str) -> str:
     and return the fully rendered page HTML.
     """
     try:
+        blocked_extensions = (
+            '.pdf', '.zip', '.exe', '.csv', '.jpg', '.jpeg', '.png', '.gif', '.bmp', 
+            '.tiff', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.xml', 
+            '.json', '.tar', '.gz', '.rar', '.7z', '.mp3', '.mp4', '.avi', '.mkv', '.mov', 
+            '.iso', '.tar.gz', '.tgz', '.dmg', '.flv', '.webm', '.svg', '.woff', '.woff2', 
+            '.ttf', '.otf', '.psd', '.ai', '.eps', '.indd', '.fla', '.swf'
+        )
         async with async_playwright() as pw:
             browser = await pw.firefox.launch()
             page = await browser.new_page()
-            await page.set_download_behavior(behavior="deny")
+            page.on("route", lambda route, request: route.abort() if request.url.endswith(blocked_extensions) else route.continue_())
 
             await page.goto(url, wait_until="networkidle", timeout=30000)
 
