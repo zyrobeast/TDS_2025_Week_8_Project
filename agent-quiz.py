@@ -196,7 +196,7 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
     if secret != SECRET or email.lower() != EMAIL.lower():
         return JSONResponse(status_code=403, content={"error": "Invalid secret or email."})
 
-    background_tasks.add_task(solve_question, get_question_fields(json.loads(payload)))
+    background_tasks.add_task(solve_question, get_question_fields(payload))
     return JSONResponse(status_code=200, content={"status": "queued"})
 
 
