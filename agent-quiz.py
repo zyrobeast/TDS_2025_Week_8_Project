@@ -71,8 +71,8 @@ async def load_page_html(url: str) -> str:
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch()
-            context = browser.new_context(accept_downloads=False)
-            page = context.new_page()
+            context = await browser.new_context(accept_downloads=False)
+            page = await context.new_page()
 
             await page.goto(url, wait_until="networkidle", timeout=30000)
 
