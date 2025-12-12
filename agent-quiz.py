@@ -29,7 +29,7 @@ EMAIL = os.getenv("EMAIL")
 SECRET = os.getenv("SECRET")
 AI_PIPE_TOKEN = os.getenv("AI_PIPE_TOKEN")
 OUTPUT_FILE_PATH = "run.py"
-AGENT_USE_LEFT = 10
+AGENT_USE_LEFT = 5
 
 @dataclass
 class AgentDeps:
@@ -72,6 +72,8 @@ async def load_page_html(url: str) -> str:
         async with async_playwright() as pw:
             browser = await pw.firefox.launch()
             page = await browser.new_page()
+            await page.set_download_behavior(behavior="deny")
+
             await page.goto(url, wait_until="networkidle", timeout=30000)
 
             html_content = await page.content()
