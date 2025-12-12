@@ -33,6 +33,7 @@ OUTPUT_FILE_PATH = "run.py"
 @dataclass
 class AgentDeps:
     question_dict: dict = field(default_factory=dict)
+    submission_responses: List[str] = field(default_factory=list)
 
 model = OpenAIResponsesModel(
     "gpt-4o-mini",
@@ -46,8 +47,8 @@ agent = Agent(model, retries=3, deps_type=AgentDeps)
 @agent.system_prompt
 async def add_task(ctx: RunContext[AgentDeps]) -> str:
     return f"""
-    You are a quiz solver who can use Python if necessary.
-    Solve the question given in the url given in the json below:
+    You are a quiz solver who can use Python programming language if necessary.
+    Solve the question given in the url given in the json below. The question might be hidden in text of the page, in audio, image or video. Write python code appropriately to extract the question if necessary.
     
     {json.dumps(ctx.deps.question_dict, indent=2)}
 
@@ -57,14 +58,14 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     - Do not try to submit the answer in the code, use the submit_answer tool.
     - Execute the code using the tool provided to get the answer.
     - Submit the result of the code to the submission url given in the question page. The result may contain errors, handle them appropriately.
-    - Return the submission response json in json format for the submission tool as the final output (Output the json only as text, no markdown).
+    - Return the submission response from the submission tool as the final output (Output text, no markdown).
     """
 
 @agent.tool_plain
-async def load_page_text(url: str) -> str:
+async def load_page_html(url: str) -> str:
     """
-    Load the given URL using Playwright, render JavaScript,
-    and return the fully rendered page text.
+    Load given URL using Playwright, render JavaScript,
+    and return the fully rendered page HTML.
     """
     try:
         async with async_playwright() as pw:
@@ -72,11 +73,10 @@ async def load_page_text(url: str) -> str:
             page = await browser.new_page()
             await page.goto(url, wait_until="networkidle", timeout=5000)
 
-            text = await page.inner_text("body")
-
+            html_content = await page.content()
             await browser.close()
-            print("Loaded page text:\n", text)
-            return text
+            print("Loaded page HTML:\n", html_content)
+            return html_content
     except Exception as e:
         print("Playwright error:", e)
         raise ModelRetry("Failed to use Playwright to load the page. Try again.")
@@ -107,8 +107,8 @@ async def write_code_and_get_result(file_data: str, dependencies: List[str]):
         print(f"Code execution failed due to:\n {str(e)}")
         raise ModelRetry(f"Code execution failed due to:\n {str(e)}")
 
-@agent.tool_plain
-async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
+@agent.tool
+async def submit_answer(ctx: RunContext[AgentDeps], submit_url: str, question_url: str, answer: str) -> str:
     """
     Submit the answer for the question_url to the given submit_url via POST request.
     Returns the response json.
@@ -122,8 +122,9 @@ async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
         response = requests.post(submit_url, json=json_data, timeout=5)
         response_json = response.json()
 
+        print("Response:", response_json)
+        ctx.deps.submission_responses.append(response_json)
         if not response_json.get("correct", False):
-            print("Answer was incorrect:", response_json)
             raise ModelRetry(f"Answer was incorrect, please try rewriting the code. Reason for incorrect answer: {response_json.get('reason', 'Unknown')}. If the answer is incorrect multiple times, output {response_json} as the result.")
         
         return response_json
@@ -134,28 +135,25 @@ async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
 def get_question_fields(question_json):
     return {key: value for key, value in question_json.items() if key not in ["email", "secret", "correct", "reason"]}
 
-async def solve_question(question_fields: dict) -> str:
+async def solve_question(question_fields: dict, submission_responses: List[str]) -> str:
     print(question_fields)
 
     try:
         result = await agent.run(
-            deps=AgentDeps(question_dict=question_fields),
+            deps=AgentDeps(question_dict=question_fields, submission_responses=submission_responses),
             usage_limits=UsageLimits(tool_calls_limit=10)
         )
         
         result_str = result.output
+        print("Final agent output:", result_str)
     except Exception as e:
         print("Agent execution error:", e)
-    
-    try:
-        result_json = json.loads(result_str)
-    except json.JSONDecodeError:
-        print("Result is not valid JSON:", result_str)
-    
-    if "url" in result_json:
-        await solve_question(get_question_fields(result_json))
 
-    return json.dumps(result_json)
+    
+    if submission_responses and "url" in submission_responses[-1]:
+        await solve_question(get_question_fields(submission_responses[-1]), submission_responses)
+
+    return "Execution completed"
 
 @app.get("/")
 async def root():
@@ -199,7 +197,7 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
     if secret != SECRET or email.lower() != EMAIL.lower():
         return JSONResponse(status_code=403, content={"error": "Invalid secret or email."})
 
-    background_tasks.add_task(solve_question, get_question_fields(payload))
+    background_tasks.add_task(solve_question, get_question_fields(payload), [])
     return JSONResponse(status_code=200, content={"status": "queued"})
 
 
