@@ -29,6 +29,7 @@ EMAIL = os.getenv("EMAIL")
 SECRET = os.getenv("SECRET")
 AI_PIPE_TOKEN = os.getenv("AI_PIPE_TOKEN")
 OUTPUT_FILE_PATH = "run.py"
+MAX_AGENT_USE = 50
 
 @dataclass
 class AgentDeps:
@@ -119,7 +120,7 @@ async def submit_answer(ctx: RunContext[AgentDeps], submit_url: str, question_ur
         json_data['email'] = EMAIL
         json_data['url'] = question_url
         json_data['answer'] = answer
-        response = requests.post(submit_url, json=json_data, timeout=5)
+        response = requests.post(submit_url, json=json_data, timeout=20)
         response_json = response.json()
 
         print("\nResponse:", response_json)
@@ -150,8 +151,9 @@ async def solve_question(question_fields: dict, submission_responses: List[str])
         print("Agent execution error:", e)
 
     
-    if submission_responses and "url" in submission_responses[-1]:
+    if submission_responses and "url" in submission_responses[-1] and AGENT_USE_LEFT > 0:
         await solve_question(get_question_fields(submission_responses[-1]), submission_responses)
+        AGENT_USE_LEFT -= 1
 
     return "Execution completed"
 
@@ -197,8 +199,12 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
     if secret != SECRET or email.lower() != EMAIL.lower():
         return JSONResponse(status_code=403, content={"error": "Invalid secret or email."})
 
-    background_tasks.add_task(solve_question, get_question_fields(payload), [])
-    return JSONResponse(status_code=200, content={"status": "queued"})
+    if AGENT_USE_LEFT > 0:
+        background_tasks.add_task(solve_question, get_question_fields(payload), [])
+        AGENT_USE_LEFT -= 1
+        return JSONResponse(status_code=200, content={"status": "queued"})
+    else:
+        return JSONResponse(status_code=429, content={"error": "Agent usage limit reached. Try again later."})
 
 
 if __name__ == "__main__":
