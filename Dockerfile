@@ -44,7 +44,7 @@ RUN . venv/bin/activate && uv sync
 
 # ---------- Install Playwright and browsers within the virtual environment ----------
 RUN . venv/bin/activate && pip install --no-cache-dir playwright
-RUN . venv/bin/activate && playwright install --with-deps firefox
+RUN . venv/bin/activate && playwright install --with-deps chromium
 
 # ---------- Environment variables ----------
 ENV PYTHONDONTWRITEBYTECODE=1

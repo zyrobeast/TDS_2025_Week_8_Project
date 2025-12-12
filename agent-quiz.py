@@ -54,7 +54,7 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     {json.dumps(ctx.deps.question_dict, indent=2)}
 
     You must:
-    - Write a python code that prints the answer to the question only to the output stream. You may run multiple python scripts if you need to analyse something in the given page. You can also use playwright in the script.
+    - Write a python code that prints the answer to the question only to the output stream. You may run multiple python scripts if you need to analyse something in the given page.
     - Code must solve the question given in the url page.
     - Do not try to submit the answer in the code, use the submit_answer tool.
     - Execute the code using the tool provided to get the answer.
@@ -69,17 +69,10 @@ async def load_page_html(url: str) -> str:
     and return the fully rendered page HTML.
     """
     try:
-        blocked_extensions = (
-            '.pdf', '.zip', '.exe', '.csv', '.jpg', '.jpeg', '.png', '.gif', '.bmp', 
-            '.tiff', '.txt', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.xml', 
-            '.json', '.tar', '.gz', '.rar', '.7z', '.mp3', '.mp4', '.avi', '.mkv', '.mov', 
-            '.iso', '.tar.gz', '.tgz', '.dmg', '.flv', '.webm', '.svg', '.woff', '.woff2', 
-            '.ttf', '.otf', '.psd', '.ai', '.eps', '.indd', '.fla', '.swf'
-        )
         async with async_playwright() as pw:
-            browser = await pw.firefox.launch()
-            page = await browser.new_page()
-            page.on("route", lambda route, request: route.abort() if any(request.url.endswith(ext) for ext in blocked_extensions) else route.continue_())
+            browser = await pw.chromium.launch()
+            context = browser.new_context(accept_downloads=False)
+            page = context.new_page()
 
             await page.goto(url, wait_until="networkidle", timeout=30000)
 
@@ -146,7 +139,7 @@ def get_question_fields(question_json):
     return {key: value for key, value in question_json.items() if key not in ["email", "secret", "correct", "reason"]}
 
 async def solve_question(question_fields: dict, submission_responses: List[str]) -> str:
-    print(question_fields)
+    print(question_fields, f"AGENT_USE_LEFT: {AGENT_USE_LEFT}", )
 
     try:
         result = await agent.run(
