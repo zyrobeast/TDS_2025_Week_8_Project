@@ -1,0 +1,36 @@
+name: Push to Hugging Face
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  push_to_hf:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Push to HF repo
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          SPACE="TDS_2025_Week_8_Project"
+          REPO="zyrobeast/$SPACE"
+
+          # Clone the repo using the token in the HTTPS URL
+          git clone https://zyrobeast:$HF_TOKEN@huggingface.co/spaces/$REPO
+          cd $SPACE
+
+          # Copy files from GitHub workflow workspace
+          rsync -av --exclude="$(basename "$PWD")" --exclude=".git*" ../ ./
+          mv HF_README.md README.md
+
+          # Commit and push changes
+          git config user.name "tds-github-actions-zyrobeast"
+          git config user.email "tds-github-actions-zyrobeast@gmail.com"
+          git add .
+          git commit -m "Auto-update from GitHub" || echo "Nothing to commit"
+          git push

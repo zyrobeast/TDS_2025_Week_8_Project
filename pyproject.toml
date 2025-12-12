@@ -1,0 +1,14 @@
+[project]
+name = "tds-2025-project-week-8"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.124.2",
+    "playwright>=1.57.0",
+    "pydantic>=2.12.5",
+    "pydantic-ai>=1.30.0",
+    "requests>=2.32.5",
+    "uvicorn>=0.38.0",
+]
