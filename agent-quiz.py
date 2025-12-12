@@ -54,9 +54,10 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     You must:
     - Write a python code that prints the answer to the question only to the output stream.
     - Code must solve the question given in the url page.
+    - Do not try to submit the answer in the code, use the submit_answer tool.
     - Execute the code using the tool provided to get the answer.
     - Submit the result of the code to the submission url given in the question page. The result may contain errors, handle them appropriately.
-    - Return the submission response json in json format for the submission tool as the final output (Output the json only, no markdown).
+    - Return the submission response json in json format for the submission tool as the final output (Output the json only as text, no markdown).
     """
 
 @agent.tool_plain
@@ -107,7 +108,7 @@ async def write_code_and_get_result(file_data: str, dependencies: List[str]):
         raise ModelRetry(f"Code execution failed due to:\n {str(e)}")
 
 @agent.tool_plain
-async def submit_answer(submit_url: str, question_url: str, answer: str) -> dict:
+async def submit_answer(submit_url: str, question_url: str, answer: str) -> str:
     """
     Submit the answer for the question_url to the given submit_url via POST request.
     Returns the response json.
