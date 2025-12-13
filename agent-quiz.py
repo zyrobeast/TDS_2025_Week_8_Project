@@ -86,7 +86,7 @@ async def load_page_html(url: str) -> str:
             context = await browser.new_context(accept_downloads=True)
             page = await context.new_page()
 
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(url, wait_until="commit", timeout=30000)
 
             html_content = await page.content()
 
@@ -96,7 +96,7 @@ async def load_page_html(url: str) -> str:
             return html_content
     except Exception as e:
         print("Playwright error:", e)
-        raise ModelRetry("Failed to use Playwright to load the page. Try again.")
+        raise ModelRetry("Failed to use Playwright to load the page. Try again. Ignore this message if you already recieved the page html")
 
 
 @agent.tool_plain
