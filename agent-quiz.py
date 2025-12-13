@@ -74,9 +74,6 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     - Return the submission response from the submission tool as the final output (Output text, no markdown).
     """
 
-from playwright.async_api import async_playwright
-from pydantic_ai import ModelRetry
-
 @agent.tool_plain
 async def load_page_html(url: str) -> str:
     """
