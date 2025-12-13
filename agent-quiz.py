@@ -164,7 +164,7 @@ async def solve_question(question_fields: dict, submission_responses: List[str])
     except Exception as e:
         print("Agent execution error:", e)
 
-    if submission_responses and "url" in submission_responses[-1] and await is_agent_use_left():
+    if submission_responses and submission_responses[-1].get("url", False) and await is_agent_use_left():
         await solve_question(get_question_fields(submission_responses[-1]), submission_responses)
 
     return "Execution completed"
