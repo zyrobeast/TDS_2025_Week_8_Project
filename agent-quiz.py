@@ -71,7 +71,7 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     - Code must solve the question given in the url page.
     - Do not try to submit the answer in the code, use the submit_answer tool.
     - Execute the code using the tool provided to get the answer.
-    - Submit the result of the code to the submission url given in the question page. The result may contain errors, handle them appropriately.
+    - Submit the result of the code to the submission url given in the question page.
     - Return the submission response from the submission tool as the final output (Output text, no markdown).
     """
 
@@ -117,11 +117,15 @@ async def write_code_and_get_result(file_data: str, dependencies: List[str]):
             capture_output=True,
             text=True
         )
+
+        if result.returncode != 0:
+            print(f"Code execution failed with error:\n{result.stderr}")
+            raise ModelRetry(f"Code execution failed with error:\n{result.stderr}. If you are not able to fix the code after one try, just submit to the submission url using dummy data.")
         print(result.stdout)
         return result.stdout
     except Exception as e:
         print(f"Code execution failed due to:\n {str(e)}")
-        raise ModelRetry(f"Code execution failed due to:\n {str(e)}. If you are not able to fix the code after one try, just submit to the submission url using dummy data.")
+        raise ModelRetry(f"Code execution failed due to:\n {str(e)}. Try again.")
 
 @agent.tool
 async def submit_answer(ctx: RunContext[AgentDeps], submit_url: str, question_url: str, answer: str) -> str:
