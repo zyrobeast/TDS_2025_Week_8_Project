@@ -97,7 +97,6 @@ async def load_page_html(url: str) -> str:
             print("Playwright error:", e)
             raise ModelRetry("Failed to use Playwright to load the page. Ignore this message if you already recieved the html of the page. Else try again. If this tool produces error more than one time, just submit to the submission url using dummy data.")
 
-
 @agent.tool_plain
 async def write_code_and_get_result(file_data: str, dependencies: List[str]):
     """
@@ -217,7 +216,6 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
         return JSONResponse(status_code=200, content={"status": "queued"})
     else:
         return JSONResponse(status_code=429, content={"error": "Agent usage limit reached. Try again later."})
-
 
 if __name__ == "__main__":
     uvicorn.run(app, port=7860, host="0.0.0.0")

@@ -1,8 +1,8 @@
 ---
 title: TDS_2025_Week_8_Project
 emoji: 🚀
-colorFrom: yellow
-colorTo: red
+colorFrom: red
+colorTo: yellow
 sdk: docker
 app_port: 7860
 pinned: true
