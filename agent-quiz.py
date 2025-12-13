@@ -97,7 +97,14 @@ async def load_page_html(url: str) -> str:
                 else:
                     await route.continue_()
 
-            await page.route("**/*", block_navigation)
+            def route_handler(route, request):
+                if request.is_navigation_request() and request.redirected_from():
+                    print(f"Redirect detected: {request.url}")
+                    route.abort()
+                else:
+                    route.continue_()
+
+            await page.route("**/*", route_handler)
 
             await page.goto(url, wait_until="networkidle", timeout=60000)
 
