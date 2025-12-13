@@ -113,6 +113,7 @@ async def load_page_html(url: str) -> str:
 
             async def prevent_resource_navigation(route):
                 request = route.request
+                print(request.url, request.resource_type)
                 if request.resource_type in RESOURCE_TYPES:
                     await route.abort()
                     return
