@@ -89,20 +89,13 @@ async def load_page_html(url: str) -> str:
             context = await browser.new_context(accept_downloads=False)
             page = await context.new_page()
 
-            async def block_navigation(route):
-                request = route.request
-                if request.is_navigation_request() and request.frame == page.main_frame:
-                    print(f"Blocked navigation to: {request.url}")
+
+            async def route_handler(route):
+                if route.request.is_navigation_request() and route.request.redirected_from():
+                    print(f"Redirect detected: {request.url}")
                     await route.abort()
                 else:
                     await route.continue_()
-
-            def route_handler(route, request):
-                if request.is_navigation_request() and request.redirected_from():
-                    print(f"Redirect detected: {request.url}")
-                    route.abort()
-                else:
-                    route.continue_()
 
             await page.route("**/*", route_handler)
 
