@@ -83,20 +83,18 @@ async def load_page_html(url: str) -> str:
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch()
-            context = await browser.new_context(accept_downloads=True)
+            context = await browser.new_context()
             page = await context.new_page()
 
-            await page.goto(url, wait_until="commit", timeout=30000)
-
+            await page.goto(url, wait_until="networkidle", timeout=30000)
             html_content = await page.content()
 
-            await browser.close()
-
             print("\n\nLoaded page HTML:\n", html_content, "\n\n")
+            
             return html_content
     except Exception as e:
-        print("Playwright error:", e)
-        raise ModelRetry("Failed to use Playwright to load the page. Try again. Ignore this message if you already recieved the page html")
+        print("Playwright launch error:", e)
+        raise ModelRetry("Failed to use Playwright to load the page. Ignore this message if you already recieved the html of the page. Else try again.")
 
 
 @agent.tool_plain
