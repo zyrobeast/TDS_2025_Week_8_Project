@@ -89,6 +89,24 @@ async def load_page_html(url: str) -> str:
             context = await browser.new_context(accept_downloads=True)
             page = await context.new_page()
 
+            first_page_loaded = False
+
+            async def route_handler(route):
+                nonlocal first_page_loaded
+                request = route.request
+
+                if request.is_navigation_request() and request.frame == page.main_frame:
+                    if not first_page_loaded:
+                        first_page_loaded = True
+                    else:
+                        print(f"Blocked navigation to: {request.url}")
+                        await route.abort()
+                        return
+                
+                await route.continue_()
+
+            await page.route("**/*", route_handler)
+
             await page.goto(url, wait_until="networkidle", timeout=30000)
 
             html_content = await page.content()
