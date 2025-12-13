@@ -67,6 +67,7 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
 
     You must:
     - Write a python code that prints the answer to the question only to the output stream. You may run multiple python scripts if you need to analyse something in the given page.
+    - Code should be properly fomatted and indented.
     - Code must solve the question given in the url page.
     - Do not try to submit the answer in the code, use the submit_answer tool.
     - Execute the code using the tool provided to get the answer.
@@ -80,8 +81,8 @@ async def load_page_html(url: str) -> str:
     Load the given URL using Playwright, render JavaScript,
     and return the fully rendered page HTML.
     """
-    try:
-        async with async_playwright() as pw:
+    async with async_playwright() as pw:
+        try:
             browser = await pw.chromium.launch()
             context = await browser.new_context()
             page = await context.new_page()
@@ -92,9 +93,9 @@ async def load_page_html(url: str) -> str:
             print("\n\nLoaded page HTML:\n", html_content, "\n\n")
 
             return html_content
-    except Exception as e:
-        print("Playwright error:", e)
-        raise ModelRetry("Failed to use Playwright to load the page. Ignore this message if you already recieved the html of the page. Else try again.")
+        except Exception as e:
+            print("Playwright error:", e)
+            raise ModelRetry("Failed to use Playwright to load the page. Ignore this message if you already recieved the html of the page. Else try again. If this tool produces error more than one time, just submit to the submission url using dummy data.")
 
 
 @agent.tool_plain
@@ -121,7 +122,7 @@ async def write_code_and_get_result(file_data: str, dependencies: List[str]):
         return result.stdout
     except Exception as e:
         print(f"Code execution failed due to:\n {str(e)}")
-        raise ModelRetry(f"Code execution failed due to:\n {str(e)}")
+        raise ModelRetry(f"Code execution failed due to:\n {str(e)}. If you are not able to fix the code after one try, just submit to the submission url using dummy data.")
 
 @agent.tool
 async def submit_answer(ctx: RunContext[AgentDeps], submit_url: str, question_url: str, answer: str) -> str:
