@@ -83,8 +83,6 @@ async def load_page_html(url: str) -> str:
     RESOURCE_EXTENSIONS = (
             # Images
             ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico", ".tiff", ".tif",
-            # Stylesheets & scripts
-            ".css", ".js", ".mjs",
             # Fonts
             ".woff", ".woff2", ".ttf", ".otf", ".eot",
             # Audio & Video
