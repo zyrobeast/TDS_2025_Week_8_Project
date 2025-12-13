@@ -86,20 +86,10 @@ async def load_page_html(url: str) -> str:
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch()
-            context = await browser.new_context(accept_downloads=False)
+            context = await browser.new_context(accept_downloads=True)
             page = await context.new_page()
 
-
-            async def route_handler(route):
-                if route.request.is_navigation_request() and route.request.redirected_from():
-                    print(f"Redirect detected: {request.url}")
-                    await route.abort()
-                else:
-                    await route.continue_()
-
-            await page.route("**/*", route_handler)
-
-            await page.goto(url, wait_until="networkidle", timeout=60000)
+            await page.goto(url, wait_until="networkidle", timeout=30000)
 
             html_content = await page.content()
 
