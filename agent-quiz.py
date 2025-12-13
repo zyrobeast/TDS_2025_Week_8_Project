@@ -74,10 +74,13 @@ async def add_task(ctx: RunContext[AgentDeps]) -> str:
     - Return the submission response from the submission tool as the final output (Output text, no markdown).
     """
 
+from playwright.async_api import async_playwright
+from pydantic_ai import ModelRetry
+
 @agent.tool_plain
 async def load_page_html(url: str) -> str:
     """
-    Load given URL using Playwright, render JavaScript,
+    Load the given URL using Playwright, render JavaScript,
     and return the fully rendered page HTML.
     """
     try:
@@ -88,14 +91,15 @@ async def load_page_html(url: str) -> str:
 
             async def block_navigation(route):
                 request = route.request
-                if request.is_navigation_request():
+                if request.is_navigation_request() and request.frame == page.main_frame:
+                    print(f"Blocked navigation to: {request.url}")
                     await route.abort()
-                    return
-                await route.continue_()
+                else:
+                    await route.continue_()
 
             await page.route("**/*", block_navigation)
 
-            await page.goto(url, wait_until="networkidle", timeout=30000)
+            await page.goto(url, wait_until="networkidle", timeout=60000)
 
             html_content = await page.content()
 
@@ -103,9 +107,11 @@ async def load_page_html(url: str) -> str:
 
             print("\n\nLoaded page HTML:\n", html_content, "\n\n")
             return html_content
+
     except Exception as e:
         print("Playwright error:", e)
         raise ModelRetry("Failed to use Playwright to load the page. Try again.")
+
 
 @agent.tool_plain
 async def write_code_and_get_result(file_data: str, dependencies: List[str]):
