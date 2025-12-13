@@ -80,55 +80,13 @@ async def load_page_html(url: str) -> str:
     Load the given URL using Playwright, render JavaScript,
     and return the fully rendered page HTML.
     """
-    RESOURCE_EXTENSIONS = (
-            # Images
-            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp", ".ico", ".tiff", ".tif",
-            # Fonts
-            ".woff", ".woff2", ".ttf", ".otf", ".eot",
-            # Audio & Video
-            ".mp3", ".wav", ".ogg", ".flac", ".aac",
-            ".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv",
-            # Documents
-            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".rtf", ".csv",
-            # Archives & binaries
-            ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".exe", ".bin", ".apk", ".iso",
-            # Data files
-            ".json", ".xml", ".yaml", ".yml", ".db", ".sqlite", ".db3",
-            # Other
-            ".map", ".lock", ".log", ".cache"
-        )
-
-    # Resource types to block
-    RESOURCE_TYPES = [
-        "image",
-        "font",
-        "media",
-        "other"
-    ]
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch()
             context = await browser.new_context(accept_downloads=True)
             page = await context.new_page()
 
-            async def prevent_resource_navigation(route):
-                request = route.request
-                
-                if request.resource_type in RESOURCE_TYPES:
-                    print("Aborting resource:", request.url)
-                    await route.abort()
-                    return
-                
-                if any(request.url.lower().split("?")[0].endswith(ext) for ext in RESOURCE_EXTENSIONS):
-                    print("Aborting resource:", request.url)
-                    await route.abort()
-                    return
-                
-                await route.continue_()
-
-            await page.route("**/*", prevent_resource_navigation)
-
-            await page.goto(url, wait_until="networkidle", timeout=30000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
             html_content = await page.content()
 
