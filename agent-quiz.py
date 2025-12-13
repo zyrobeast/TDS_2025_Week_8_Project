@@ -90,10 +90,10 @@ async def load_page_html(url: str) -> str:
             html_content = await page.content()
 
             print("\n\nLoaded page HTML:\n", html_content, "\n\n")
-            
+
             return html_content
     except Exception as e:
-        print("Playwright launch error:", e)
+        print("Playwright error:", e)
         raise ModelRetry("Failed to use Playwright to load the page. Ignore this message if you already recieved the html of the page. Else try again.")
 
 

@@ -93,7 +93,7 @@ result = requests.post(
     json={
         "email": f"{os.getenv('EMAIL')}",
         "secret": f"{os.getenv('SECRET')}",
-        "url": "https://tds-llm-analysis.s-anand.net/demo"
+        "url": "https://tds-llm-analysis.s-anand.net/project2"
         }
 )
 
