@@ -13,6 +13,9 @@ from pydantic_ai import Agent, RunContext, ModelRetry
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.usage import UsageLimits
+import asyncio
+
+AGENT_USE_LEFT_LOCK = asyncio.Lock()
 
 from playwright.async_api import async_playwright
 
@@ -30,6 +33,15 @@ SECRET = os.getenv("SECRET")
 AI_PIPE_TOKEN = os.getenv("AI_PIPE_TOKEN")
 OUTPUT_FILE_PATH = "run.py"
 AGENT_USE_LEFT = 5
+
+async def is_agent_use_left():
+    global AGENT_USE_LEFT
+    async with AGENT_USE_LEFT_LOCK:
+        if AGENT_USE_LEFT > 0:
+            AGENT_USE_LEFT -= 1
+            print(f"AGENT_USE_LEFT : {AGENT_USE_LEFT}")
+            return True
+        return False
 
 @dataclass
 class AgentDeps:
@@ -67,33 +79,6 @@ async def load_page_html(url: str) -> str:
     """
     Load given URL using Playwright, render JavaScript,
     and return the fully rendered page HTML.
-    """
-    try:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
-            context = await browser.new_context(accept_downloads=True)
-            page = await context.new_page()
-
-            await page.goto(url, wait_until="networkidle", timeout=60000)
-
-            html_content = await page.content()
-            await browser.close()
-            print("\n\nLoaded page HTML:\n", html_content, "\n\n")
-            return html_content
-    except Exception as e:
-        print("Playwright error:", e)
-        raise ModelRetry("Failed to use Playwright to load the page. Try again.")
-
-from playwright.async_api import async_playwright
-
-class ModelRetry(Exception):
-    pass
-
-async def load_page_html(url: str) -> str:
-    """
-    Load the given URL using Playwright, render JavaScript,
-    prevent automatic navigation and downloads, and return
-    the fully rendered page HTML.
     """
     try:
         async with async_playwright() as pw:
@@ -189,10 +174,7 @@ async def solve_question(question_fields: dict, submission_responses: List[str])
     except Exception as e:
         print("Agent execution error:", e)
 
-    global AGENT_USE_LEFT
-    if submission_responses and "url" in submission_responses[-1] and AGENT_USE_LEFT > 0:
-        AGENT_USE_LEFT -= 1
-        print(f"\n\nAGENT_USE_LEFT: {AGENT_USE_LEFT}")
+    if submission_responses and "url" in submission_responses[-1] and await is_agent_use_left():
         await solve_question(get_question_fields(submission_responses[-1]), submission_responses)
 
     return "Execution completed"
@@ -239,9 +221,7 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
     if secret != SECRET or email.lower() != EMAIL.lower():
         return JSONResponse(status_code=403, content={"error": "Invalid secret or email."})
 
-    global AGENT_USE_LEFT
-    if AGENT_USE_LEFT > 0:
-        AGENT_USE_LEFT -= 1
+    if await is_agent_use_left():
         background_tasks.add_task(solve_question, get_question_fields(payload), [])
         return JSONResponse(status_code=200, content={"status": "queued"})
     else:
