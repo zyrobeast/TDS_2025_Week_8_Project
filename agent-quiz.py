@@ -98,31 +98,26 @@ async def load_page_html(url: str) -> str:
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch()
-            try:
-                context = await browser.new_context(accept_downloads=False)
-                page = await context.new_page()
+            context = await browser.new_context(accept_downloads=False)
+            page = await context.new_page()
 
-                async def block_navigation(route):
-                    request = route.request
-                    if request.is_navigation_request():
-                        await route.abort()
-                        return
-                    await route.continue_()
+            async def block_navigation(route):
+                request = route.request
+                if request.is_navigation_request():
+                    await route.abort()
+                    return
+                await route.continue_()
 
-                await page.route("**/*", block_navigation)
+            await page.route("**/*", block_navigation)
 
-                await page.goto(url, wait_until="networkidle", timeout=30000)
+            await page.goto(url, wait_until="networkidle", timeout=30000)
 
-                html_content = await page.content()
+            html_content = await page.content()
 
-                await browser.close()
+            await browser.close()
 
-                print("\n\nLoaded page HTML:\n", html_content, "\n\n")
-                return html_content
-
-            finally:
-                await browser.close()
-
+            print("\n\nLoaded page HTML:\n", html_content, "\n\n")
+            return html_content
     except Exception as e:
         print("Playwright error:", e)
         raise ModelRetry("Failed to use Playwright to load the page. Try again.")
@@ -196,9 +191,9 @@ async def solve_question(question_fields: dict, submission_responses: List[str])
 
     global AGENT_USE_LEFT
     if submission_responses and "url" in submission_responses[-1] and AGENT_USE_LEFT > 0:
+        AGENT_USE_LEFT -= 1
         print(f"\n\nAGENT_USE_LEFT: {AGENT_USE_LEFT}")
         await solve_question(get_question_fields(submission_responses[-1]), submission_responses)
-        AGENT_USE_LEFT -= 1
 
     return "Execution completed"
 
@@ -246,8 +241,8 @@ async def task_root(request: Request, background_tasks: BackgroundTasks):
 
     global AGENT_USE_LEFT
     if AGENT_USE_LEFT > 0:
-        background_tasks.add_task(solve_question, get_question_fields(payload), [])
         AGENT_USE_LEFT -= 1
+        background_tasks.add_task(solve_question, get_question_fields(payload), [])
         return JSONResponse(status_code=200, content={"status": "queued"})
     else:
         return JSONResponse(status_code=429, content={"error": "Agent usage limit reached. Try again later."})
