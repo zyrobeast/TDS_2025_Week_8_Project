@@ -32,7 +32,7 @@ EMAIL = os.getenv("EMAIL")
 SECRET = os.getenv("SECRET")
 AI_PIPE_TOKEN = os.getenv("AI_PIPE_TOKEN")
 OUTPUT_FILE_PATH = "run.py"
-AGENT_USE_LEFT = 100
+AGENT_USE_LEFT = 200
 
 async def is_agent_use_left():
     global AGENT_USE_LEFT
