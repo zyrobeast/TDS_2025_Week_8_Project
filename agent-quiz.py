@@ -133,6 +133,7 @@ async def submit_answer(ctx: RunContext[AgentDeps], submit_url: str, question_ur
     Submit the answer for the question_url to the given submit_url via POST request.
     Returns the response json.
     """
+    print(f"\n\nSubmitting answer '{answer}' for question url '{question_url}' to submit url '{submit_url}'")
     try:
         json_data = {}
         json_data['secret'] = SECRET
