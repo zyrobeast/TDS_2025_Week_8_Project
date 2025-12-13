@@ -101,10 +101,8 @@ async def load_page_html(url: str) -> str:
     # Resource types to block
     RESOURCE_TYPES = [
         "image",
-        "stylesheet",
         "font",
         "media",
-        "script",
         "other"
     ]
     try:
